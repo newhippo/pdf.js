@@ -1418,9 +1418,8 @@ let PDFViewerApplication = {
 
 let validateFileURL;
 if (typeof PDFJSDev === 'undefined' || PDFJSDev.test('GENERIC')) {
-  const HOSTED_VIEWER_ORIGINS = ['null',
-    'http://mozilla.github.io', 'https://mozilla.github.io'];
-  validateFileURL = function validateFileURL(file) {
+  const HOSTED_VIEWER_ORIGINS = ['null', 'http://mozilla.github.io', 'https://mozilla.github.io'];
+  validateFileURL = function validateFileURL(file, allowedOrigin) {
     if (file === undefined) {
       return;
     }
@@ -1431,6 +1430,10 @@ if (typeof PDFJSDev === 'undefined' || PDFJSDev.test('GENERIC')) {
         return;
       }
       let { origin, protocol, } = new URL(file, window.location.href);
+      if (origin === allowedOrigin) {
+        // Allow the consuming application to specify safe origins to serve PDFs from
+        return;
+      }
       // Removing of the following line will not guarantee that the viewer will
       // start accepting URLs from foreign origin -- CORS headers on the remote
       // server must be properly configured.
@@ -1497,7 +1500,8 @@ function webViewerInitialized() {
     let queryString = document.location.search.substring(1);
     let params = parseQueryString(queryString);
     file = 'file' in params ? params.file : AppOptions.get('defaultUrl');
-    validateFileURL(file);
+    const allowedOrigin = 'allowedorigin' in params ? params.allowedorigin : null;
+    validateFileURL(file, allowedOrigin);
   } else if (PDFJSDev.test('FIREFOX || MOZCENTRAL')) {
     file = window.location.href.split('#')[0];
   } else if (PDFJSDev.test('CHROME')) {
@@ -1512,10 +1516,13 @@ function webViewerInitialized() {
     fileInput.oncontextmenu = noContextMenuHandler;
     document.body.appendChild(fileInput);
 
-    if (!window.File || !window.FileReader ||
-        !window.FileList || !window.Blob) {
-      appConfig.toolbar.openFile.setAttribute('hidden', 'true');
-      appConfig.secondaryToolbar.openFileButton.setAttribute('hidden', 'true');
+    if (!window.File || !window.FileReader || !window.FileList || !window.Blob) {
+      if (appConfig.toolbar.openFile) {
+        appConfig.toolbar.openFile.setAttribute('hidden', 'true');
+      }
+      if (appConfig.secondaryToolbar.openFileButton) {
+        appConfig.secondaryToolbar.openFileButton.setAttribute('hidden', 'true');
+      }
     } else {
       fileInput.value = null;
     }
@@ -1550,8 +1557,12 @@ function webViewerInitialized() {
       });
     });
   } else {
-    appConfig.toolbar.openFile.setAttribute('hidden', 'true');
-    appConfig.secondaryToolbar.openFileButton.setAttribute('hidden', 'true');
+    if (appConfig.toolbar.openFile) {
+      appConfig.toolbar.openFile.setAttribute('hidden', 'true');
+    }
+    if (appConfig.secondaryToolbar.openFileButton) {
+      appConfig.secondaryToolbar.openFileButton.setAttribute('hidden', 'true');
+    }
   }
 
   if (typeof PDFJSDev !== 'undefined' &&
@@ -1774,11 +1785,13 @@ function webViewerUpdateViewarea(evt) {
       'rotation': location.rotation,
     }).catch(function() { /* unable to write to storage */ });
   }
-  let href =
-    PDFViewerApplication.pdfLinkService.getAnchorUrl(location.pdfOpenParams);
-  PDFViewerApplication.appConfig.toolbar.viewBookmark.href = href;
-  PDFViewerApplication.appConfig.secondaryToolbar.viewBookmarkButton.href =
-    href;
+  let href = PDFViewerApplication.pdfLinkService.getAnchorUrl(location.pdfOpenParams);
+  if (PDFViewerApplication.appConfig.toolbar.viewBookmark) {
+    PDFViewerApplication.appConfig.toolbar.viewBookmark.href = href;
+  }
+  if (PDFViewerApplication.appConfig.secondaryToolbar.viewBookmarkButton) {
+    PDFViewerApplication.appConfig.secondaryToolbar.viewBookmarkButton.href = href;
+  }
 
   // Show/hide the loading indicator in the page number input element.
   let currentPage =
@@ -1858,11 +1871,19 @@ if (typeof PDFJSDev === 'undefined' || PDFJSDev.test('GENERIC')) {
 
     // URL does not reflect proper document location - hiding some icons.
     let appConfig = PDFViewerApplication.appConfig;
-    appConfig.toolbar.viewBookmark.setAttribute('hidden', 'true');
-    appConfig.secondaryToolbar.viewBookmarkButton.setAttribute('hidden',
-                                                               'true');
-    appConfig.toolbar.download.setAttribute('hidden', 'true');
-    appConfig.secondaryToolbar.downloadButton.setAttribute('hidden', 'true');
+    if (appConfig.toolbar.viewBookmark) {
+      appConfig.toolbar.viewBookmark.setAttribute('hidden', 'true');
+    }
+    if (appConfig.secondaryToolbar.viewBookmarkButton) {
+      appConfig.secondaryToolbar.viewBookmarkButton.setAttribute('hidden', 'true');
+    }
+
+    if (appConfig.toolbar.download) {
+      appConfig.toolbar.download.setAttribute('hidden', 'true');
+    }
+    if (appConfig.secondaryToolbar.downloadButton) {
+      appConfig.secondaryToolbar.downloadButton.setAttribute('hidden', 'true');
+    }
   };
 }
 
