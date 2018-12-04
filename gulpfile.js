@@ -598,6 +598,9 @@ function preprocessHTML(source, defines) {
   var outName = getTempFile('~preprocess', '.html');
   builder.preprocess(source, outName, defines);
   var out = fs.readFileSync(outName).toString();
+
+  var versionFile = JSON.parse(fs.readFileSync(BUILD_DIR + '/version.json').toString());
+  out = out.split('[%version%]').join(versionFile.version);
   fs.unlinkSync(outName);
 
   var i = source.lastIndexOf('/');
